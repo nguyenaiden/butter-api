@@ -1,38 +1,38 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+## Butter Backend Take home
+Steps:
+- Run `yarn install`
+- To start the local dev server run `yarn dev`
+Notes: I've chosen to use nextJS as the backend framework along with Railway as a hosted MySQL solution.
+Please refer to the `dbschema.sql` file for the database schema. Note: I have manually populated the `users` table with a few sample entries
+Sample userids: 
+```
+291ad09f-978d-11ed-8d21-0242ac11009d
+297becb7-978d-11ed-8d21-0242ac11009d
+29c01b28-978d-11ed-8d21-0242ac11009d
+29fcea48-978d-11ed-8d21-0242ac11009d
+2a398b23-978d-11ed-8d21-0242ac11009d
+a8b32c90-96d3-11ed-8d21-0242ac11009d
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+MySQL DB access: `mysql -hcontainers-us-west-58.railway.app -uroot -pLW6kSO0bQTRgXKn8FKiS --port 5490 --protocol=TCP railway` 
+Notes: This gives you ssh access into the deployed MySQL DB. 
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+The available API routes are as follow:
+- Ping: `/api/ping`
+    - This route run process.uptime() to get the status of the server
+    - Run a sample query against the DB to ensure connection is intact
+    - Return the server date
+    Sample request: `curl localhost:3000/api/ping`
+- Loads: `/api/v1/load`
+    - This route only accepts PUT method. Any other methods will result in a status 403 with an error message
+    - This will load the user account with the credit amount provided
+    Sample request:
+    `curl -X PUT localhost:3000/api/v1/load -H 'Content-Type: application/json' -d '{ "userId":"291ad09f-978d-11ed-8d21-0242ac11009d", "transactionAmount": { "amount": 30, "currency": "USD" }}'` 
+- Authorization: `/api/v1/authorization`
+    - This route only accepts PUT method. Any other methods will result in a status 403 with an error message
+    - This will verify whether or not a user has enough balance for debit operations. Will reject requests with a `Declined` status if user does not meet the balance requirements.
+    Sample request:
+    `curl -X PUT localhost:3000/api/v1/authorization -H 'Content-Type: application/json' -d '{ "userId":"291ad09f-978d-11ed-8d21-0242ac11009d", "transactionAmount": { "amount": 48, "currency": "USD" }}'`
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
-
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
-
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Event Sourcing pattern applied:
+- On every load/authorize, the balance is calculated by going through all of the records in the `events` table that has the `Approved` status, and update the balance field in the `users` table accordingly. This action is done through a MySQL trigger (Refer to the `dbschema.sql` file). This operation is done within a transaction, so that every request is an all-or-nothing operation to prevent fragmented/incorrect data updates.

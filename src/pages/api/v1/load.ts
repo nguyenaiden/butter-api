@@ -21,14 +21,6 @@ export default async function handler(
       try {
         const messageId = uuid()
         await getEventInsertTransaction(trx, messageId, userId, "CREDIT", "approved", currency, amount)
-        // await trx('events').insert({
-        //   messageId,
-        //   userId,
-        //   type: "CREDIT",
-        //   status: "approved",
-        //   currency,
-        //   transaction_amount: amount
-        // })
         const { balance }  = (await getBalanceTransaction(trx, userId))[0] 
         await trx.commit()
         res.status(201).json({ userId, messageId, balance: {
